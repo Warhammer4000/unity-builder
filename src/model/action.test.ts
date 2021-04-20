@@ -4,8 +4,8 @@ import Action from './action';
 
 describe('Action', () => {
   describe('compatibility check', () => {
-    it('throws for anything other than linux', () => {
-      if (process.platform !== 'linux') {
+    it('throws for anything other than linux or darwin', () => {
+      if (!['linux', 'darwin'].includes(process.platform)) {
         expect(() => Action.checkCompatibility()).toThrow();
       } else {
         expect(() => Action.checkCompatibility()).not.toThrow();
