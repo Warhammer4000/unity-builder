@@ -68,18 +68,18 @@ export default class Versioning {
    * Regex to parse version description into separate fields
    */
   static get descriptionRegex1() {
-    return /^v([\d.]+)-(\d+)-g(\w+)-?(\w+)*/g;
+    return /^v?([\d.]+)-(\d+)-g(\w+)-?(\w+)*/g;
   }
 
   static get descriptionRegex2() {
-    return /^v([\d.]+-\w+)-(\d+)-g(\w+)-?(\w+)*/g;
+    return /^v?([\d.]+-\w+)-(\d+)-g(\w+)-?(\w+)*/g;
   }
 
   static get descriptionRegex3() {
-    return /^v([\d.]+-\w+\.\d+)-(\d+)-g(\w+)-?(\w+)*/g;
+    return /^v?([\d.]+-\w+\.\d+)-(\d+)-g(\w+)-?(\w+)*/g;
   }
 
-  static async determineVersion(strategy: string, inputVersion: string) {
+  static async determineBuildVersion(strategy: string, inputVersion: string) {
     // Validate input
     if (!Object.hasOwnProperty.call(this.strategies, strategy)) {
       throw new ValidationError(`Versioning strategy should be one of ${Object.values(this.strategies).join(', ')}.`);
@@ -130,6 +130,7 @@ export default class Versioning {
     if (!(await this.hasAnyVersionTags())) {
       const version = `0.0.${await this.getTotalNumberOfCommits()}`;
       core.info(`Generated version ${version} (no version tags found).`);
+
       return version;
     }
 
@@ -148,6 +149,7 @@ export default class Versioning {
 
     const version = `0.0.${await this.getTotalNumberOfCommits()}`;
     core.info(`Generated version ${version} (semantic version couldn't be determined).`);
+
     return version;
   }
 
@@ -203,6 +205,7 @@ export default class Versioning {
           core.warning(
             `Failed to parse git describe output or version can not be determined through: "${description}".`,
           );
+
           return false;
         }
       }
@@ -251,15 +254,21 @@ export default class Versioning {
    */
   static async isDirty() {
     const output = await this.git(['status', '--porcelain']);
+    const isDirty = output !== '';
 
-    return output !== '';
+    if (isDirty) {
+      core.warning('Changes were made to the following files and folders:\n');
+      core.warning(output);
+    }
+
+    return isDirty;
   }
 
   /**
    * Get the tag if there is one pointing at HEAD
    */
   static async getTag() {
-    return this.git(['tag', '--points-at', 'HEAD']);
+    return (await this.git(['tag', '--points-at', 'HEAD'])).trim();
   }
 
   /**
@@ -268,6 +277,7 @@ export default class Versioning {
   static async hasAnyVersionTags() {
     const numberOfCommitsAsString = await System.run('sh', undefined, {
       input: Buffer.from('git tag --list --merged HEAD | grep v[0-9]* | wc -l'),
+      cwd: this.projectPath,
       silent: false,
     });
 

@@ -48,7 +48,7 @@ describe('Input', () => {
 
   describe('projectPath', () => {
     it('returns the default value', () => {
-      expect(Input.projectPath).toStrictEqual('.');
+      expect(Input.projectPath).toStrictEqual('test-project');
     });
 
     it('takes input from the users workflow', () => {
@@ -222,6 +222,19 @@ describe('Input', () => {
       const mockValue = 'secret';
       const spy = jest.spyOn(core, 'getInput').mockReturnValue(mockValue);
       expect(Input.androidKeyaliasPass).toStrictEqual(mockValue);
+      expect(spy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('androidTargetSdkVersion', () => {
+    it('returns the default value', () => {
+      expect(Input.androidTargetSdkVersion).toStrictEqual('');
+    });
+
+    it('takes input from the users workflow', () => {
+      const mockValue = 'secret';
+      const spy = jest.spyOn(core, 'getInput').mockReturnValue(mockValue);
+      expect(Input.androidTargetSdkVersion).toStrictEqual(mockValue);
       expect(spy).toHaveBeenCalledTimes(1);
     });
   });

@@ -1,89 +1,69 @@
 import { exec } from '@actions/exec';
-import ImageTag from './image-tag';
+import ImageEnvironmentFactory from './image-environment-factory';
+import { existsSync, mkdirSync } from 'fs';
+import path from 'path';
 
 class Docker {
-  static async build(buildParameters, silent = false) {
-    const { path, dockerfile, baseImage } = buildParameters;
-    const { version, platform } = baseImage;
-
-    const tag = new ImageTag({ repository: '', name: 'unity-builder', version, platform });
-    const command = `docker build ${path} \
-      --file ${dockerfile} \
-      --build-arg IMAGE=${baseImage} \
-      --tag ${tag}`;
-
-    await exec(command, undefined, { silent });
-
-    return tag;
+  static async run(image, parameters, silent = false) {
+    let runCommand = '';
+    switch (process.platform) {
+      case 'linux':
+        runCommand = this.getLinuxCommand(image, parameters);
+        break;
+      case 'win32':
+        runCommand = this.getWindowsCommand(image, parameters);
+    }
+    await exec(runCommand, undefined, { silent });
   }
 
-  static async run(image, parameters, silent = false) {
-    const {
-      version,
-      workspace,
-      runnerTempPath,
-      platform,
-      projectPath,
-      buildName,
-      buildPath,
-      buildFile,
-      buildMethod,
-      buildVersion,
-      androidVersionCode,
-      androidKeystoreName,
-      androidKeystoreBase64,
-      androidKeystorePass,
-      androidKeyaliasName,
-      androidKeyaliasPass,
-      customParameters,
-    } = parameters;
+  static getLinuxCommand(image, parameters): string {
+    const { workspace, actionFolder, runnerTempPath, sshAgent, gitPrivateToken } = parameters;
 
-    const command = `docker run \
-        --workdir /github/workspace \
-        --rm \
-        --env UNITY_LICENSE \
-        --env UNITY_LICENSE_FILE \
-        --env UNITY_EMAIL \
-        --env UNITY_PASSWORD \
-        --env UNITY_SERIAL \
-        --env UNITY_VERSION="${version}" \
-        --env USYM_UPLOAD_AUTH_TOKEN \
-        --env PROJECT_PATH="${projectPath}" \
-        --env BUILD_TARGET="${platform}" \
-        --env BUILD_NAME="${buildName}" \
-        --env BUILD_PATH="${buildPath}" \
-        --env BUILD_FILE="${buildFile}" \
-        --env BUILD_METHOD="${buildMethod}" \
-        --env VERSION="${buildVersion}" \
-        --env ANDROID_VERSION_CODE="${androidVersionCode}" \
-        --env ANDROID_KEYSTORE_NAME="${androidKeystoreName}" \
-        --env ANDROID_KEYSTORE_BASE64="${androidKeystoreBase64}" \
-        --env ANDROID_KEYSTORE_PASS="${androidKeystorePass}" \
-        --env ANDROID_KEYALIAS_NAME="${androidKeyaliasName}" \
-        --env ANDROID_KEYALIAS_PASS="${androidKeyaliasPass}" \
-        --env CUSTOM_PARAMETERS="${customParameters}" \
-        --env GITHUB_REF \
-        --env GITHUB_SHA \
-        --env GITHUB_REPOSITORY \
-        --env GITHUB_ACTOR \
-        --env GITHUB_WORKFLOW \
-        --env GITHUB_HEAD_REF \
-        --env GITHUB_BASE_REF \
-        --env GITHUB_EVENT_NAME \
-        --env GITHUB_WORKSPACE=/github/workspace \
-        --env GITHUB_ACTION \
-        --env GITHUB_EVENT_PATH \
-        --env RUNNER_OS \
-        --env RUNNER_TOOL_CACHE \
-        --env RUNNER_TEMP \
-        --env RUNNER_WORKSPACE \
-        --volume "/var/run/docker.sock":"/var/run/docker.sock" \
-        --volume "${runnerTempPath}/_github_home":"/root" \
-        --volume "${runnerTempPath}/_github_workflow":"/github/workflow" \
-        --volume "${workspace}":"/github/workspace" \
-        ${image}`;
+    const githubHome = path.join(runnerTempPath, '_github_home');
+    if (!existsSync(githubHome)) mkdirSync(githubHome);
+    const githubWorkflow = path.join(runnerTempPath, '_github_workflow');
+    if (!existsSync(githubWorkflow)) mkdirSync(githubWorkflow);
 
-    await exec(command, undefined, { silent });
+    return `docker run \
+            --workdir /github/workspace \
+            --rm \
+            ${ImageEnvironmentFactory.getEnvVarString(parameters)} \
+            --env UNITY_SERIAL \
+            --env GITHUB_WORKSPACE=/github/workspace \
+            ${gitPrivateToken ? `--env GIT_PRIVATE_TOKEN="${gitPrivateToken}"` : ''} \
+            ${sshAgent ? '--env SSH_AUTH_SOCK=/ssh-agent' : ''} \
+            --volume "${githubHome}":"/root:z" \
+            --volume "${githubWorkflow}":"/github/workflow:z" \
+            --volume "${workspace}":"/github/workspace:z" \
+            --volume "${actionFolder}/default-build-script:/UnityBuilderAction:z" \
+            --volume "${actionFolder}/platforms/ubuntu/steps:/steps:z" \
+            --volume "${actionFolder}/platforms/ubuntu/entrypoint.sh:/entrypoint.sh:z" \
+            ${sshAgent ? `--volume ${sshAgent}:/ssh-agent` : ''} \
+            ${sshAgent ? '--volume /home/runner/.ssh/known_hosts:/root/.ssh/known_hosts:ro' : ''} \
+            ${image} \
+            /bin/bash -c /entrypoint.sh`;
+  }
+
+  static getWindowsCommand(image: any, parameters: any): string {
+    const { workspace, actionFolder, unitySerial, gitPrivateToken } = parameters;
+
+    return `docker run \
+            --workdir /github/workspace \
+            --rm \
+            ${ImageEnvironmentFactory.getEnvVarString(parameters)} \
+            --env UNITY_SERIAL="${unitySerial}" \
+            --env GITHUB_WORKSPACE=c:/github/workspace \
+            ${gitPrivateToken ? `--env GIT_PRIVATE_TOKEN="${gitPrivateToken}"` : ''} \
+            --volume "${workspace}":"c:/github/workspace" \
+            --volume "c:/regkeys":"c:/regkeys" \
+            --volume "C:/Program Files (x86)/Microsoft Visual Studio":"C:/Program Files (x86)/Microsoft Visual Studio" \
+            --volume "C:/Program Files (x86)/Windows Kits":"C:/Program Files (x86)/Windows Kits" \
+            --volume "C:/ProgramData/Microsoft/VisualStudio":"C:/ProgramData/Microsoft/VisualStudio" \
+            --volume "${actionFolder}/default-build-script":"c:/UnityBuilderAction" \
+            --volume "${actionFolder}/platforms/windows":"c:/steps" \
+            --volume "${actionFolder}/BlankProject":"c:/BlankProject" \
+            ${image} \
+            powershell c:/steps/entrypoint.ps1`;
   }
 }
 

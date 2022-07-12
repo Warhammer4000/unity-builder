@@ -39,12 +39,14 @@ namespace UnityBuilderAction
 
       // Set version for this build
       VersionApplicator.SetVersion(options["buildVersion"]);
-      VersionApplicator.SetAndroidVersionCode(options["androidVersionCode"]);
       
       // Apply Android settings
       if (buildPlayerOptions.target == BuildTarget.Android)
+      {
+        VersionApplicator.SetAndroidVersionCode(options["androidVersionCode"]);
         AndroidSettings.Apply(options);
-
+      }
+      
       // Execute default AddressableAsset content build, if the package is installed.
       // Version defines would be the best solution here, but Unity 2018 doesn't support that,
       // so we fall back to using reflection instead.
@@ -53,14 +55,11 @@ namespace UnityBuilderAction
       if (addressableAssetSettingsType != null)
       {
         // ReSharper disable once PossibleNullReferenceException, used from try-catch
-        void CallAddressablesMethod(string methodName, object[] args) => addressableAssetSettingsType
-          .GetMethod(methodName, BindingFlags.Static | BindingFlags.Public)
-          .Invoke(null, args);
-
         try
         {
-          CallAddressablesMethod("CleanPlayerContent", new object[] { null });
-          CallAddressablesMethod("BuildPlayerContent", Array.Empty<object>());
+          addressableAssetSettingsType.GetMethod("CleanPlayerContent", BindingFlags.Static | BindingFlags.Public)
+                .Invoke(null, new object[] {null});
+          addressableAssetSettingsType.GetMethod("BuildPlayerContent", new Type[0]).Invoke(null, new object[0]);
         }
         catch (Exception e)
         {

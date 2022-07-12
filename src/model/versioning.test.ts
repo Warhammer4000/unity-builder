@@ -110,13 +110,14 @@ describe('Versioning', () => {
 
       expect(logDiffSpy).toHaveBeenCalledTimes(1);
       expect(gitSpy).toHaveBeenCalledTimes(1);
+
       // Todo - this no longer works since typescript
       // const issuedCommand = System.run.mock.calls[0][2].input.toString();
       // expect(issuedCommand.indexOf('diff')).toBeGreaterThan(-1);
     });
   });
 
-  describe('descriptionRegex', () => {
+  describe('descriptionRegex1', () => {
     it('is a valid regex', () => {
       expect(Versioning.descriptionRegex1).toBeInstanceOf(RegExp);
     });
@@ -128,21 +129,29 @@ describe('Versioning', () => {
       },
     );
 
+    test.each(['1.1-1-g12345678', '0.1-2-g12345678', '0.0-500-gA9B6C3D0-dirty'])(
+      'accepts valid semantic versions without v-prefix %s',
+      (description) => {
+        expect(Versioning.descriptionRegex1.test(description)).toBeTruthy();
+      },
+    );
+
     test.each(['v0', 'v0.1', 'v0.1.2', 'v0.1-2', 'v0.1-2-g'])('does not like %s', (description) => {
       expect(Versioning.descriptionRegex1.test(description)).toBeFalsy();
-      // Also never expect without the v to work for any of these cases.
+
+      // Also, never expect without the v to work for any of these cases.
       expect(Versioning.descriptionRegex1.test(description?.slice(1))).toBeFalsy();
     });
   });
 
-  describe('determineVersion', () => {
+  describe('determineBuildVersion', () => {
     test.each(['somethingRandom'])('throws for invalid strategy %s', async (strategy) => {
-      await expect(Versioning.determineVersion(strategy, '')).rejects.toThrowErrorMatchingSnapshot();
+      await expect(Versioning.determineBuildVersion(strategy, '')).rejects.toThrowErrorMatchingSnapshot();
     });
 
     describe('opt out strategy', () => {
       it("returns 'none'", async () => {
-        await expect(Versioning.determineVersion('None', 'v1.0')).resolves.toMatchInlineSnapshot(`"none"`);
+        await expect(Versioning.determineBuildVersion('None', 'v1.0')).resolves.toMatchInlineSnapshot(`"none"`);
       });
     });
 
@@ -150,7 +159,7 @@ describe('Versioning', () => {
       test.each(['v0.1', '1', 'CamelCase', 'dashed-version'])(
         'returns the inputVersion for %s',
         async (inputVersion) => {
-          await expect(Versioning.determineVersion('Custom', inputVersion)).resolves.toStrictEqual(inputVersion);
+          await expect(Versioning.determineBuildVersion('Custom', inputVersion)).resolves.toStrictEqual(inputVersion);
         },
       );
     });
@@ -159,7 +168,7 @@ describe('Versioning', () => {
       it('refers to generateSemanticVersion', async () => {
         const generateSemanticVersion = jest.spyOn(Versioning, 'generateSemanticVersion').mockResolvedValue('1.3.37');
 
-        await expect(Versioning.determineVersion('Semantic', '')).resolves.toStrictEqual('1.3.37');
+        await expect(Versioning.determineBuildVersion('Semantic', '')).resolves.toStrictEqual('1.3.37');
         expect(generateSemanticVersion).toHaveBeenCalledTimes(1);
       });
     });
@@ -168,7 +177,7 @@ describe('Versioning', () => {
       it('refers to generateTagVersion', async () => {
         const generateTagVersion = jest.spyOn(Versioning, 'generateTagVersion').mockResolvedValue('0.1');
 
-        await expect(Versioning.determineVersion('Tag', '')).resolves.toStrictEqual('0.1');
+        await expect(Versioning.determineBuildVersion('Tag', '')).resolves.toStrictEqual('0.1');
         expect(generateTagVersion).toHaveBeenCalledTimes(1);
       });
     });
@@ -178,7 +187,7 @@ describe('Versioning', () => {
         const strategy = 'Test';
         // @ts-ignore
         jest.spyOn(Versioning, 'strategies', 'get').mockReturnValue({ [strategy]: strategy });
-        await expect(Versioning.determineVersion(strategy, '')).rejects.toThrowError(NotImplementedException);
+        await expect(Versioning.determineBuildVersion(strategy, '')).rejects.toThrowError(NotImplementedException);
       });
     });
   });

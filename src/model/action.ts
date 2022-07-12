@@ -2,7 +2,7 @@ import path from 'path';
 
 class Action {
   static get supportedPlatforms() {
-    return ['linux', 'darwin'];
+    return ['linux', 'win32', 'darwin'];
   }
 
   static get isRunningLocally() {
@@ -27,10 +27,6 @@ class Action {
 
   static get actionFolder() {
     return `${Action.rootFolder}/dist`;
-  }
-
-  static get dockerfile() {
-    return `${Action.actionFolder}/Dockerfile`;
   }
 
   static get workspace() {

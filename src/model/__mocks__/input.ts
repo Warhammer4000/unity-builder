@@ -2,7 +2,7 @@
 import Platform from '../platform';
 
 export const mockGetFromUser = jest.fn().mockResolvedValue({
-  version: '',
+  editorVersion: '',
   targetPlatform: Platform.types.Test,
   projectPath: '.',
   buildName: Platform.types.Test,
@@ -10,6 +10,9 @@ export const mockGetFromUser = jest.fn().mockResolvedValue({
   buildMethod: undefined,
   buildVersion: '1.3.37',
   customParameters: '',
+  sshAgent: '',
+  chownFilesTo: '',
+  gitPrivateToken: '',
 });
 
 export default {

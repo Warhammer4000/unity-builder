@@ -4,11 +4,15 @@ import Action from './action';
 
 describe('Action', () => {
   describe('compatibility check', () => {
-    it('throws for anything other than linux or darwin', () => {
-      if (!['linux', 'darwin'].includes(process.platform)) {
-        expect(() => Action.checkCompatibility()).toThrow();
-      } else {
-        expect(() => Action.checkCompatibility()).not.toThrow();
+    it('throws for anything other than linux, windows, or mac', () => {
+      switch (process.platform) {
+        case 'linux':
+        case 'win32':
+        case 'darwin':
+          expect(() => Action.checkCompatibility()).not.toThrow();
+          break;
+        default:
+          expect(() => Action.checkCompatibility()).toThrow();
       }
     });
   });
@@ -25,12 +29,5 @@ describe('Action', () => {
 
     expect(path.basename(actionFolder)).toStrictEqual('dist');
     expect(fs.existsSync(actionFolder)).toStrictEqual(true);
-  });
-
-  it('returns the docker file', () => {
-    const { dockerfile } = Action;
-
-    expect(path.basename(dockerfile)).toStrictEqual('Dockerfile');
-    expect(fs.existsSync(dockerfile)).toStrictEqual(true);
   });
 });
